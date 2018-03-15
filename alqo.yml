@@ -1,0 +1,218 @@
+--- # provision alqo hosts
+# Usage: ansible-playbook alqo.yml -e'rpcuser=rpcusername' # or defaults to rpcuser 
+# user - alqo user; pass - rpc password; key - smartprivkey;
+# requires passlib python module
+# rowlando v1.0 20180215
+# updates
+# ###################################################################################
+
+- name: build out alqo masternode hosts
+  hosts: localhost
+  remote_user: root
+  vars_prompt:
+    - name: "user"
+      prompt: "Enter alqo username"
+      private: no
+    - name: "password"
+      prompt: "Enter alqo user password"
+      private: yes
+      encrypt: "sha512_crypt"
+      confirm: yes
+      salt_size: 7
+    - name: rpcpass
+      prompt: "Enter rpc password"
+      private: yes
+    - name: key
+      prompt: "Enter alqopriv key"
+      private: no
+
+  tasks:
+
+    - name: create sudoers file
+      copy:
+        content: |
+          {{ user }}  ALL=NOPASSWD:ALL
+        dest: '/etc/sudoers.d/{{ user }}'
+        mode: 0400
+
+
+    - name: add ppa:bitcoin/bitcoin
+      apt_repository:
+        repo: 'ppa:bitcoin/bitcoin'
+
+
+    - name: install basic libraries 
+      apt:
+        name: '{{ item }}'
+        update_cache: yes
+      with_items:
+        - software-properties-common
+        - git
+        - automake
+        - build-essential
+        - libtool
+        - autotools-dev
+        - autoconf
+        - pkg-config
+        - libssl-dev
+        - libboost-all-dev
+        - libdb4.8-dev
+        - libdb4.8++-dev
+        - libminiupnpc-dev
+        - ufw
+        - facter
+        - fail2ban
+
+
+    - name: Create the user '{{ user  }}'
+      user: 
+        name: '{{ user  }}'
+        password: '{{ password }}' 
+        shell: /bin/bash
+        groups: sudo
+        comment: "Alqo User"
+
+    - name: Create alqo directory
+      become: yes
+      become_user: '{{ user }}'
+      file:
+        path: /home/{{ user }}/alqo
+        state: directory
+        mode: 0755
+        owner: '{{ user }}'
+        group: '{{ user }}'
+    
+    - name: Fetch the alqo binaries
+      become: yes
+      become_user: '{{ user }}'
+      uri:
+        url: '{{ item.url }}'
+        dest: '{{ item.dest }}'
+        flat: yes
+      with_items:
+        - { url: 'https://builds.alqo.org/linux/alqod',    dest: '/home/{{ user }}/alqo/alqod' }
+        - { url: 'https://builds.alqo.org/linux/alqo-cli', dest: '/home/{{ user }}/alqo/alqo-cli' }
+      creates: /home/{{ user }}/alqo/alqod
+      ignore_errors: true
+
+    - name: set perms of alqod and alqo-cli
+      become: yes
+      become_user: '{{ user }}'
+      file:
+        path: /home/{{ user }}/alqo/{{ item.file }}
+        mode: 0777
+      with_items:
+        - { file: 'alqod' }
+        - { file: 'alqo-cli' }
+     
+    - name: create .alqo directory
+      become: true
+      become_user: '{{ user }}'
+      file:
+        path: /home/{{ user }}/.alqo
+        state: directory
+
+    - name: create the alqo.conf file
+      become: true
+      become_user: '{{ user }}'
+      copy:
+        dest: /home/{{ user }}/.alqo/alqo.conf
+        content: |
+          ###############################################
+          ##                        MY MASTERNODE_01
+          ###############################################
+
+          rpcuser={{ user  }}
+          rpcpassword={{ rpcpass }}
+          rpcallowip=127.0.0.1
+          listen=1
+          server=1
+          daemon=1
+          logtimestamps=1
+          maxconnections=256
+          masternode=1
+          externalip={{ facter_ipaddress }}
+          bind={{ facter_ipaddress }}
+          masternodeaddr={{ facter_ipaddress }}
+          masternodeprivkey={{ key }}
+          addnode=85.25.138.64
+          addnode=85.25.251.198
+          addnode=85.25.251.199
+          addnode=80.209.227.9
+          addnode=80.209.228.190
+          addnode=80.209.228.191
+          addnode=80.209.228.192
+          addnode=80.209.228.193
+          addnode=80.209.228.189
+          addnode=80.209.228.194
+          addnode=80.209.228.197
+          addnode=80.209.228.196
+          addnode=80.209.228.195
+      notify: "reload alqo"
+
+    - name: start alqo if it doesnt yet exist
+      become: yes
+      become_user: '{{ user }}'
+      command: /home/{{ user }}/alqo/alqod
+
+    
+    - name: add ufw rules
+      ufw:
+        rule: allow
+        proto: tcp
+        port: '{{ item.port }}'
+        src: '{{ item.src }}'
+        direction: in
+      with_items:
+        - { src: '0.0.0.0', port: '22' }
+        - { src: '0.0.0.0', port: '55500' }
+        - { src: '188.226.133.236', port: '6556' }
+
+    - name: limit ssh
+      ufw:
+        rule: limit
+        port: ssh
+        proto: tcp
+
+
+    - name: log ufw
+      ufw:
+        logging: full 
+      ignore_errors: true
+     
+    - name: enable ufw
+      command: ufw --force enable
+    
+    - name: turn off root logins
+      lineinfile:
+        dest: /etc/ssh/sshd_config
+        regexp: "^PermitRootLogin" 
+        line: 'PermitRootLogin no'
+        insertafter: EOF
+      notify: restart sshd
+
+
+  handlers:
+    - name: test for alqo pid
+      stat:
+        path: /home/{{ user }}/.alqo/alqo.pid
+      register: alqo_pid
+  
+    - name: reload alqo 
+      become: yes
+      become_user: '{{ user }}'
+      command: /home/{{ user }}/alqo/alqo-cli stop && /home/{{ user }}/alqo/alqod
+      when: alqo_pid.exists
+      ignore_errors: true
+
+    - name: start alqod
+      become: yes
+      become_user: '{{ user }}'
+      command: /home/{{ user }}/alqo/alqod
+
+
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted
+
