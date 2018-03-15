@@ -2,8 +2,12 @@
 Automate alqo masternode builds
 ===============================
 
+* Tested on Ubuntu 16.04.3 LTS stretch/sid *
+
+
 This script will set up the remote masternode. But please make sure the local wallet has been set up and the private key already generated. 
 See https://docs.google.com/document/u/1/d/e/2PACX-1vS8DV8o3rKguPaBDh8gqQRLnvSnEmhJn7o1jpqcgy0Yoirh-CJfh2_79V7RM7DgQDw68Oy6xWQ9pUHM/pub for instructions on how to do this.
+
 
 On your vps, as the root user:
 
