@@ -47,7 +47,6 @@
         update_cache: yes
       with_items:
         - software-properties-common
-        - git
         - automake
         - build-essential
         - libtool
