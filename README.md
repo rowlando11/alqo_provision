@@ -2,7 +2,7 @@
 Automate alqo masternode builds
 ===============================
 
-* Tested on Ubuntu 16.04.3 LTS stretch/sid *
+* Tested on Ubuntu 16.04.3 LTS 
 
 
 This script will set up the remote masternode. But please make sure the local wallet has been set up and the private key already generated. 
@@ -19,5 +19,7 @@ On your vps, as the root user:
 
 
 The script will set up a local user of your choice, disable remote root ssh logins, install fail2ban, ufw, configure ufw for incoming ssh and  incoming alqo connections and set up the masternode as well as adding a cron job which starts the alqod upon a reboot.
+
+
 
 TODO: Add monit to monitor the alqod process and disk/cpu/memory usage.
