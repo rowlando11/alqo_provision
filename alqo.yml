@@ -1,10 +1,11 @@
 --- # provision alqo hosts
-# Usage: ansible-playbook alqo.yml -e'rpcuser=rpcusername' # or defaults to rpcuser 
-# user - alqo user; pass - rpc password; key - smartprivkey;
-# requires passlib python module
 # rowlando v1.0 20180215
+# Usage: ansible-playbook alqo.yml 
+# user: alqouser; pass: alqopass; rpcpass: rpc password; key:alqoprivkey
+# requires passlib python module
+# vars: user, password, rpcpass, alqoprivkey
 # updates
-# ###################################################################################
+# #######################################################################
 
 - name: build out alqo masternode hosts
   hosts: localhost
