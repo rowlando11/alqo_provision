@@ -173,7 +173,7 @@
         port: ssh
         proto: tcp
 
-    - name: Add cron to start alqod if server reboots
+    - name: Adding cron to start alqod on server reboots
       become: true
       become_user: '{{ user }}' 
       cron:
@@ -181,6 +181,13 @@
         special_time: reboot
         job: "/home/{{ user }}/alqo/alqod"
 
+    - name: Adding cron to clear debug.log
+      become: true
+      become_user: '{{ user }}'
+      cron:
+        name: "Clear debug.log weekly"
+        special_time: weekly
+        job: "/usr/bin/truncate -s 0 /home/{{ user }}/.alqo/debug.log"
 
     - name: log ufw
       ufw:
